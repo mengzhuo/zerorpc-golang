@@ -5,8 +5,9 @@ import (
 	"net/rpc"
 	"sync"
 
-	zmq "github.com/pebbe/zmq4"
+	"github.com/golang/glog"
 	"github.com/ugorji/go/codec"
+	"github.com/zeromq/goczmq"
 )
 
 var mh codec.MsgpackHandle
@@ -25,6 +26,15 @@ type serverRequest struct {
 	Args codec.MsgpackSpecRpcMultiArgs
 }
 
+func (r *serverRequest) reset() {
+
+	r.Id = ""
+	r.Version = 0
+	r.Name = ""
+	r.Args = nil
+
+}
+
 type serverResponse struct {
 	*EventHeader
 	ResponseTo string `codec:"response_to"`
@@ -32,28 +42,49 @@ type serverResponse struct {
 }
 
 type serverCodec struct {
-	dec *codec.Decoder // for reading msgpack values
-	enc *codec.Encoder // for writing msgpack values
-	c   io.Closer
-
+	dec  *codec.Decoder // for reading msgpack values
+	enc  *codec.Encoder // for writing msgpack values
+	conn io.ReadWriter
+	seq  uint64
 	// temporary work space
-	req serverRequest
+	req *serverRequest
 
 	mutex   sync.Mutex // protects seq, pending
-	pending map[string]*EventHeader
+	pending map[uint64]string
+}
+
+func (c *serverCodec) Close() error {
+
+	return nil
 }
 
 func (c *serverCodec) ReadRequestHeader(r *rpc.Request) error {
 
+	glog.Info(r)
+	c.req.reset()
+
+	if err := c.dec.Decode(c.req); err != nil {
+		glog.Error(err)
+		return err
+	}
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	r.ServiceMethod = c.req.Name
+	c.seq++
+	c.pending[c.seq] = c.req.Id
+	r.Seq = c.seq
+	glog.Info(r)
+	glog.Info(c)
 	return nil
 }
 
 func (c *serverCodec) ReadRequestBody(x interface{}) error {
 
-	return nil
-}
-
-func (c *serverCodec) Close() error {
+	glog.Info(x)
+	if x == nil {
+		return nil
+	}
 
 	return nil
 }
@@ -64,15 +95,21 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, body interface{}) (err erro
 }
 
 // NewServerCodec returns a new rpc.ServerCodec using JSON-RPC on conn.
-func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
+func NewServerCodec(conn io.ReadWriter) rpc.ServerCodec {
 	return &serverCodec{
 		dec:     codec.NewDecoder(conn, &mh),
 		enc:     codec.NewEncoder(conn, &mh),
-		c:       conn,
-		pending: make(map[string]*EventHeader),
+		conn:    conn,
+		pending: make(map[uint64]string),
+		req:     &serverRequest{},
 	}
 }
 
-type socket struct {
-	*zmq.Socket
+func NewServer(address string) rpc.ServerCodec {
+
+	conn, err := goczmq.NewRouter(address)
+	if err != nil {
+		panic(err)
+	}
+	return NewServerCodec(conn)
 }
