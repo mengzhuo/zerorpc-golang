@@ -24,12 +24,16 @@ func TestServer(t *testing.T) {
 
 	server := rpc.NewServer()
 	server.Register(cal)
+	server.RegisterName("_zerorpc_inspect", cal)
 
 	router, e := goczmq.NewRouter("tcp://*:9999")
 	if e != nil {
 		t.Error(e)
 	}
 
-	server.ServeCodec(NewServerCodec(router))
+	codec := NewServerCodec(router)
 
+	for {
+		server.ServeRequest(codec)
+	}
 }

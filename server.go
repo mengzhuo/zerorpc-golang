@@ -15,30 +15,27 @@ var mh codec.MsgpackHandle
 // ZeroRPC protocol version
 const PROTOCAL_VERSION = 3
 
-type EventHeader struct {
-	Id      string `codec:"message_id"`
-	Version int    `codec:"v"`
+type RequestHeader struct {
+	Id         string `codec:"message_id"`
+	Version    int    `codec:"v"`
+	ResponseTo string `codec:"response_to"`
 }
 
 type serverRequest struct {
-	*EventHeader
-	Name string
-	Args codec.MsgpackSpecRpcMultiArgs
+	Header *RequestHeader
+	Name   string                        `codec:"name,omitempty"`
+	Args   codec.MsgpackSpecRpcMultiArgs `codec:"args,omitempty"`
 }
 
 func (r *serverRequest) reset() {
 
-	r.Id = ""
-	r.Version = 0
 	r.Name = ""
-	r.Args = nil
-
 }
 
 type serverResponse struct {
-	*EventHeader
-	ResponseTo string `codec:"response_to"`
-	Args       codec.MsgpackSpecRpcMultiArgs
+	Header *RequestHeader
+	Name   string `codec:"name,omitempty"`
+	Args   codec.MsgpackSpecRpcMultiArgs
 }
 
 type serverCodec struct {
@@ -46,8 +43,7 @@ type serverCodec struct {
 	enc  *codec.Encoder // for writing msgpack values
 	conn io.ReadWriter
 	seq  uint64
-	// temporary work space
-	req *serverRequest
+	req  *serverRequest
 
 	mutex   sync.Mutex // protects seq, pending
 	pending map[uint64]string
@@ -60,19 +56,19 @@ func (c *serverCodec) Close() error {
 
 func (c *serverCodec) ReadRequestHeader(r *rpc.Request) error {
 
-	glog.Info(r)
-	c.req.reset()
-
-	if err := c.dec.Decode(c.req); err != nil {
+	var vv interface{}
+	if err := c.dec.Decode(&vv); err != nil {
+		glog.Info(vv)
 		glog.Error(err)
 		return err
 	}
+	glog.Info(vv)
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	r.ServiceMethod = c.req.Name
 	c.seq++
-	c.pending[c.seq] = c.req.Id
+	c.pending[c.seq] = c.req.Header.Id
 	r.Seq = c.seq
 	glog.Info(r)
 	glog.Info(c)
@@ -81,7 +77,7 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) error {
 
 func (c *serverCodec) ReadRequestBody(x interface{}) error {
 
-	glog.Info(x)
+	glog.Info("RRB", x)
 	if x == nil {
 		return nil
 	}
@@ -96,20 +92,22 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, body interface{}) (err erro
 
 // NewServerCodec returns a new rpc.ServerCodec using JSON-RPC on conn.
 func NewServerCodec(conn io.ReadWriter) rpc.ServerCodec {
+
+	r := &serverRequest{&RequestHeader{}, "", make([]interface{}, 0)}
 	return &serverCodec{
 		dec:     codec.NewDecoder(conn, &mh),
 		enc:     codec.NewEncoder(conn, &mh),
 		conn:    conn,
 		pending: make(map[uint64]string),
-		req:     &serverRequest{},
+		req:     r,
 	}
 }
 
 func NewServer(address string) rpc.ServerCodec {
 
-	conn, err := goczmq.NewRouter(address)
+	raw_sock, err := goczmq.NewRouter(address)
 	if err != nil {
 		panic(err)
 	}
-	return NewServerCodec(conn)
+	return NewServerCodec(raw_sock)
 }
