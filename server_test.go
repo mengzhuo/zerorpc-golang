@@ -3,8 +3,6 @@ package zerorpc
 import (
 	"net/rpc"
 	"testing"
-
-	"github.com/zeromq/goczmq"
 )
 
 type Args struct {
@@ -26,14 +24,7 @@ func TestServer(t *testing.T) {
 	server.Register(cal)
 	server.RegisterName("_zerorpc_inspect", cal)
 
-	router, e := goczmq.NewRouter("tcp://*:9999")
-	if e != nil {
-		t.Error(e)
-	}
+	codec := ServeEndpoint("tcp://*:9999")
 
-	codec := NewServerCodec(router)
-
-	for {
-		server.ServeRequest(codec)
-	}
+	server.ServeRequest(codec)
 }
