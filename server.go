@@ -1,53 +1,29 @@
 package zerorpc
 
 import (
+	"bytes"
+	"fmt"
 	"net/rpc"
 	"sync"
 
 	"github.com/golang/glog"
 	zmq "github.com/pebbe/zmq4"
-	"github.com/ugorji/go/codec"
+	"gopkg.in/vmihailenco/msgpack.v2"
 )
-
-var mh codec.MsgpackHandle
 
 // ZeroRPC protocol version
 const PROTOCAL_VERSION = 3
-
-type EventHeader struct {
-	Id         string `codec:"message_id"`
-	Version    int    `codec:"v"`
-	ResponseTo string `codec:"response_to,omitempty"`
-}
-
-type serverRequest struct {
-	Header *EventHeader
-	Name   string
-	Args   codec.MsgpackSpecRpcMultiArgs
-}
-
-func (s *serverRequest) reset() {
-	s.Header = nil
-	s.Name = ""
-	s.Args = nil
-}
-
-type serverResponse struct {
-	Header *EventHeader
-	Name   string
-	Args   codec.MsgpackSpecRpcMultiArgs
-}
 
 type serverCodec struct {
 	zsock *zmq.Socket
 	seq   uint64
 	// temporary work space
-	req serverRequest
+	req []interface{}
 
 	mutex   sync.Mutex // protects seq, pending
 	pending map[uint64]string
-	buf     []byte
-	dec     *codec.Decoder
+	buf     *bytes.Buffer
+	dec     *msgpack.Decoder
 }
 
 func (c *serverCodec) Close() error {
@@ -57,25 +33,25 @@ func (c *serverCodec) Close() error {
 func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-
-	c.buf = c.buf[:0]
-	defer func(c *serverCodec) {
-		c.buf = c.buf[:0]
-	}(c)
+	c.buf.Reset()
+	c.req = c.req[:0]
 
 	msg, err := c.zsock.RecvMessageBytes(0)
-	glog.Infof("MSG Len:%d -> %s", len(msg), msg)
+	if err != nil {
+		return err
+	}
+	glog.Infof("MSG Len:%d -> %#v", len(msg), msg)
+	c.buf.Write(msg[len(msg)-1])
 
-	dec := codec.NewDecoderBytes(msg[len(msg)-1], &mh)
-
-	if err = dec.Decode(&c.req); err != nil {
-		glog.Errorf("Decode Error:%s bytes=%s", err, c.buf)
+	if err = c.dec.Decode(&c.req); err != nil {
+		glog.Errorf("Decode Error:%s bytes=%s", err, msg)
 		return
 	}
-	glog.Infof("%#v HEADER:%#v", c.req, c.req.Header)
-	r.ServiceMethod = c.req.Name
+	glog.Infof("%#v", c.req)
+
+	r.ServiceMethod = c.req[1].(string)
 	c.seq++
-	c.pending[c.seq] = c.req.Header.Id
+	c.pending[c.seq] = fmt.Sprintf("%#v", c.req[0].(map[interface{}]interface{}))
 	r.Seq = c.seq
 
 	return
@@ -107,13 +83,12 @@ func ServeEndpoint(address string) rpc.ServerCodec {
 		glog.Error(err)
 		panic(err)
 	}
-	buf := []byte{}
-	dec := codec.NewDecoderBytes(buf, &mh)
+	buf := bytes.NewBuffer([]byte{})
 	return &serverCodec{
 		zsock:   sock,
 		seq:     0,
-		buf:     buf,
-		dec:     dec,
 		pending: make(map[uint64]string),
+		buf:     buf,
+		dec:     msgpack.NewDecoder(buf),
 	}
 }
