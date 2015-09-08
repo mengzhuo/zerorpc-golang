@@ -8,20 +8,20 @@ type EventHeader struct {
 	ResponseTo string `msg:"response_to,omitempty"`
 }
 
-type serverRequest struct {
+type ServerRequest struct {
 	Header *EventHeader
 	Name   string        `msg:"name"`
 	Args   []interface{} `msg:"args"`
 }
 
-func (s *serverRequest) reset() {
+func (s *ServerRequest) reset() {
 	s.Header = nil
 	s.Name = ""
 	s.Args = nil
 }
 
-type serverResponse struct {
+type ServerResponse struct {
 	Header *EventHeader
-	Name   string
-	Args   []interface{}
+	Name   string        `msg:"name"`
+	Args   []interface{} `msg:"args"`
 }

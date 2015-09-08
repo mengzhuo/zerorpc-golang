@@ -1,14 +1,11 @@
 package zerorpc
 
 import (
-	"bytes"
-	"fmt"
 	"net/rpc"
 	"sync"
 
 	"github.com/golang/glog"
 	zmq "github.com/pebbe/zmq4"
-	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
 // ZeroRPC protocol version
@@ -18,12 +15,10 @@ type serverCodec struct {
 	zsock *zmq.Socket
 	seq   uint64
 	// temporary work space
-	req []interface{}
+	req ServerRequest
 
 	mutex   sync.Mutex // protects seq, pending
 	pending map[uint64]string
-	buf     *bytes.Buffer
-	dec     *msgpack.Decoder
 }
 
 func (c *serverCodec) Close() error {
@@ -33,25 +28,24 @@ func (c *serverCodec) Close() error {
 func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.buf.Reset()
-	c.req = c.req[:0]
+	c.req.reset()
 
 	msg, err := c.zsock.RecvMessageBytes(0)
 	if err != nil {
 		return err
 	}
 	glog.Infof("MSG Len:%d -> %#v", len(msg), msg)
-	c.buf.Write(msg[len(msg)-1])
-
-	if err = c.dec.Decode(&c.req); err != nil {
-		glog.Errorf("Decode Error:%s bytes=%s", err, msg)
-		return
+	o, err := c.req.MarshalMsg(msg[len(msg)-1])
+	if err != nil {
+		glog.Errorf("o=%#v err=%s", o, err)
+		return err
+	} else {
+		glog.Infof("c.req=%#v o=%#v", c.req, o)
 	}
-	glog.Infof("%#v", c.req)
 
-	r.ServiceMethod = c.req[1].(string)
+	r.ServiceMethod = c.req.Name
 	c.seq++
-	c.pending[c.seq] = fmt.Sprintf("%#v", c.req[0].(map[interface{}]interface{}))
+	c.pending[c.seq] = c.req.Header.Id
 	r.Seq = c.seq
 
 	return
@@ -83,12 +77,10 @@ func ServeEndpoint(address string) rpc.ServerCodec {
 		glog.Error(err)
 		panic(err)
 	}
-	buf := bytes.NewBuffer([]byte{})
 	return &serverCodec{
 		zsock:   sock,
 		seq:     0,
 		pending: make(map[uint64]string),
-		buf:     buf,
-		dec:     msgpack.NewDecoder(buf),
+		req:     ServerRequest{},
 	}
 }
