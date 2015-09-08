@@ -1,17 +1,17 @@
 package zerorpc
 
-// go:generate msgp
+//go:generate msgp
 
 type EventHeader struct {
-	Id         string `msgpack:"message_id"`
-	Version    int    `msgpack:"v"`
-	ResponseTo string `msgpack:"response_to,omitempty"`
+	Id         string `msg:"message_id"`
+	Version    int    `msg:"v"`
+	ResponseTo string `msg:"response_to,omitempty"`
 }
 
 type serverRequest struct {
 	Header *EventHeader
-	Name   string
-	Args   []interface{}
+	Name   string        `msg:"name"`
+	Args   []interface{} `msg:"args"`
 }
 
 func (s *serverRequest) reset() {
