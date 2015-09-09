@@ -35,7 +35,8 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 		return err
 	}
 	glog.Infof("MSG Len:%d -> %#v", len(msg), msg)
-	o, err := c.req.MarshalMsg(msg[len(msg)-1])
+
+	o, err := c.req.UnmarshalMsg(msg[len(msg)-1])
 	if err != nil {
 		glog.Errorf("o=%#v err=%s", o, err)
 		return err
