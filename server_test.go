@@ -3,6 +3,9 @@ package zerorpc
 import (
 	"net/rpc"
 	"testing"
+	"time"
+
+	"github.com/golang/glog"
 )
 
 type Args struct {
@@ -12,6 +15,7 @@ type Args struct {
 type Calculator struct{}
 
 func (t *Calculator) Add(args *Args, reply *int) error {
+	glog.Error(args, reply)
 	*reply = args.X + args.Y
 	return nil
 }
@@ -22,9 +26,11 @@ func TestServer(t *testing.T) {
 
 	server := rpc.NewServer()
 	server.Register(cal)
-	server.RegisterName("_zerorpc_inspect", cal)
 
 	codec := ServeEndpoint("tcp://*:9999")
 
-	server.ServeRequest(codec)
+	go server.ServeCodec(codec)
+
+	time.Sleep(2 * time.Second)
+	codec.Close()
 }

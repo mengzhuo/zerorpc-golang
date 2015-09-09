@@ -214,13 +214,13 @@ func (z *ServerRequest) DecodeMsg(dc *msgp.Reader) (err error) {
 	if err != nil {
 		return
 	}
-	if cap(z.Args) >= int(xsz) {
-		z.Args = z.Args[:xsz]
+	if cap(z.Params) >= int(xsz) {
+		z.Params = z.Params[:xsz]
 	} else {
-		z.Args = make([]interface{}, xsz)
+		z.Params = make([]interface{}, xsz)
 	}
-	for xvk := range z.Args {
-		z.Args[xvk], err = dc.ReadIntf()
+	for xvk := range z.Params {
+		z.Params[xvk], err = dc.ReadIntf()
 		if err != nil {
 			return
 		}
@@ -274,12 +274,12 @@ func (z *ServerRequest) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return
 	}
-	err = en.WriteArrayHeader(uint32(len(z.Args)))
+	err = en.WriteArrayHeader(uint32(len(z.Params)))
 	if err != nil {
 		return
 	}
-	for xvk := range z.Args {
-		err = en.WriteIntf(z.Args[xvk])
+	for xvk := range z.Params {
+		err = en.WriteIntf(z.Params[xvk])
 		if err != nil {
 			return
 		}
@@ -307,9 +307,9 @@ func (z *ServerRequest) MarshalMsg(b []byte) (o []byte, err error) {
 		o = msgp.AppendString(o, z.Header.ResponseTo)
 	}
 	o = msgp.AppendString(o, z.Name)
-	o = msgp.AppendArrayHeader(o, uint32(len(z.Args)))
-	for xvk := range z.Args {
-		o, err = msgp.AppendIntf(o, z.Args[xvk])
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Params)))
+	for xvk := range z.Params {
+		o, err = msgp.AppendIntf(o, z.Params[xvk])
 		if err != nil {
 			return
 		}
@@ -386,13 +386,13 @@ func (z *ServerRequest) UnmarshalMsg(bts []byte) (o []byte, err error) {
 	if err != nil {
 		return
 	}
-	if cap(z.Args) >= int(xsz) {
-		z.Args = z.Args[:xsz]
+	if cap(z.Params) >= int(xsz) {
+		z.Params = z.Params[:xsz]
 	} else {
-		z.Args = make([]interface{}, xsz)
+		z.Params = make([]interface{}, xsz)
 	}
-	for xvk := range z.Args {
-		z.Args[xvk], bts, err = msgp.ReadIntfBytes(bts)
+	for xvk := range z.Params {
+		z.Params[xvk], bts, err = msgp.ReadIntfBytes(bts)
 		if err != nil {
 			return
 		}
@@ -409,8 +409,8 @@ func (z *ServerRequest) Msgsize() (s int) {
 		s += 1 + 11 + msgp.StringPrefixSize + len(z.Header.Id) + 2 + msgp.IntSize + 12 + msgp.StringPrefixSize + len(z.Header.ResponseTo)
 	}
 	s += msgp.StringPrefixSize + len(z.Name) + msgp.ArrayHeaderSize
-	for xvk := range z.Args {
-		s += msgp.GuessSize(z.Args[xvk])
+	for xvk := range z.Params {
+		s += msgp.GuessSize(z.Params[xvk])
 	}
 	return
 }
@@ -484,13 +484,13 @@ func (z *ServerResponse) DecodeMsg(dc *msgp.Reader) (err error) {
 	if err != nil {
 		return
 	}
-	if cap(z.Args) >= int(xsz) {
-		z.Args = z.Args[:xsz]
+	if cap(z.Params) >= int(xsz) {
+		z.Params = z.Params[:xsz]
 	} else {
-		z.Args = make([]interface{}, xsz)
+		z.Params = make([]interface{}, xsz)
 	}
-	for bzg := range z.Args {
-		z.Args[bzg], err = dc.ReadIntf()
+	for bzg := range z.Params {
+		z.Params[bzg], err = dc.ReadIntf()
 		if err != nil {
 			return
 		}
@@ -544,12 +544,12 @@ func (z *ServerResponse) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return
 	}
-	err = en.WriteArrayHeader(uint32(len(z.Args)))
+	err = en.WriteArrayHeader(uint32(len(z.Params)))
 	if err != nil {
 		return
 	}
-	for bzg := range z.Args {
-		err = en.WriteIntf(z.Args[bzg])
+	for bzg := range z.Params {
+		err = en.WriteIntf(z.Params[bzg])
 		if err != nil {
 			return
 		}
@@ -577,9 +577,9 @@ func (z *ServerResponse) MarshalMsg(b []byte) (o []byte, err error) {
 		o = msgp.AppendString(o, z.Header.ResponseTo)
 	}
 	o = msgp.AppendString(o, z.Name)
-	o = msgp.AppendArrayHeader(o, uint32(len(z.Args)))
-	for bzg := range z.Args {
-		o, err = msgp.AppendIntf(o, z.Args[bzg])
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Params)))
+	for bzg := range z.Params {
+		o, err = msgp.AppendIntf(o, z.Params[bzg])
 		if err != nil {
 			return
 		}
@@ -656,13 +656,13 @@ func (z *ServerResponse) UnmarshalMsg(bts []byte) (o []byte, err error) {
 	if err != nil {
 		return
 	}
-	if cap(z.Args) >= int(xsz) {
-		z.Args = z.Args[:xsz]
+	if cap(z.Params) >= int(xsz) {
+		z.Params = z.Params[:xsz]
 	} else {
-		z.Args = make([]interface{}, xsz)
+		z.Params = make([]interface{}, xsz)
 	}
-	for bzg := range z.Args {
-		z.Args[bzg], bts, err = msgp.ReadIntfBytes(bts)
+	for bzg := range z.Params {
+		z.Params[bzg], bts, err = msgp.ReadIntfBytes(bts)
 		if err != nil {
 			return
 		}
@@ -679,8 +679,8 @@ func (z *ServerResponse) Msgsize() (s int) {
 		s += 1 + 11 + msgp.StringPrefixSize + len(z.Header.Id) + 2 + msgp.IntSize + 12 + msgp.StringPrefixSize + len(z.Header.ResponseTo)
 	}
 	s += msgp.StringPrefixSize + len(z.Name) + msgp.ArrayHeaderSize
-	for bzg := range z.Args {
-		s += msgp.GuessSize(z.Args[bzg])
+	for bzg := range z.Params {
+		s += msgp.GuessSize(z.Params[bzg])
 	}
 	return
 }

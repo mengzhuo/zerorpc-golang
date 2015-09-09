@@ -1,5 +1,7 @@
 package zerorpc
 
+import "fmt"
+
 //go:generate msgp
 //msgp:tuple ServerRequest
 //msgp:tuple ServerResponse
@@ -11,19 +13,24 @@ type EventHeader struct {
 }
 
 type ServerRequest struct {
-	Header *EventHeader
-	Name   string
-	Args   []interface{} `msg:"args,omitempty"`
+	Header   *EventHeader
+	Name     string
+	Params   []interface{}
+	Identity string `msg:"-"`
+}
+
+func (s *ServerRequest) String() string {
+	return fmt.Sprintf("ID:%s Name:%s Args:%v", s.Header.Id, s.Name, s.Params)
 }
 
 func (s *ServerRequest) reset() {
 	s.Header = nil
 	s.Name = ""
-	s.Args = nil
+	s.Params = nil
 }
 
 type ServerResponse struct {
 	Header *EventHeader
 	Name   string
-	Args   []interface{} `msg:"args,omitempty"`
+	Params []interface{}
 }
