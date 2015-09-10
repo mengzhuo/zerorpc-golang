@@ -103,17 +103,31 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, body interface{}) (err erro
 	b.Header.ResponseTo = b.Header.Id
 	b.Header.Id = uuid.NewV4().String()
 
-	ele := reflect.ValueOf(body).Elem()
-	typ := reflect.TypeOf(body).Elem()
-
 	params := make([]interface{}, 1, 1)
-	switch typ.Kind() {
-	case reflect.Int:
-		params[0] = ele.Int()
 
-	}
+	//ele := reflect.ValueOf(body).Elem()
+	rb := reflect.New(reflect.TypeOf(body).Elem())
+	glog.Errorf("b=%#v kind=%s be=%#v kind=%s", reflect.TypeOf(body), reflect.TypeOf(body).Kind(),
+		reflect.TypeOf(body).Elem(), reflect.TypeOf(body).Elem().Kind())
 
-	glog.Errorf("%#v, %#v, %#v", r, ele, typ)
+	glog.Errorf("rb=%#v kind=%s rbe=%#v kind=%s", reflect.ValueOf(body), reflect.ValueOf(body).Kind(),
+		reflect.ValueOf(body).Elem(), reflect.ValueOf(body).Elem().Kind())
+
+	rb.Set(reflect.ValueOf(body).Addr())
+
+	params[0] = rb
+
+	/*
+		switch ele.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int64:
+			params[0] = ele.Interface().(int)
+		case reflect.String:
+			params[0] = ele.Interface().(string)
+		default:
+			glog.Errorf("Kind =%s valid=%b nil=%b", ele.Kind(), ele.IsValid(), ele.IsNil())
+		}
+		glog.Errorf("%#v, %#v, %#v", r, ele)
+	*/
 	resp := &ServerResponse{Header: b.Header, Name: "OK", Params: params}
 
 	if r.Error != "" {

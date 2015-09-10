@@ -17,6 +17,7 @@ type Calculator struct{}
 func (t *Calculator) Add(args *Args, reply *int) error {
 	glog.Error(args, reply)
 	*reply = args.X + args.Y
+	//reply = &Args{args.Y, args.X}
 	return nil
 }
 
