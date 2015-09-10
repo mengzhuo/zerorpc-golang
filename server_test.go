@@ -2,6 +2,7 @@ package zerorpc
 
 import (
 	"net/rpc"
+	"os/exec"
 	"testing"
 	"time"
 )
@@ -18,6 +19,11 @@ func (t *Calculator) Add(args *Args, reply *int) error {
 	return nil
 }
 
+func run(cmd ...string) {
+	c := exec.Command("zerorpc", cmd...)
+	c.Run()
+}
+
 func TestServerEndpoint(t *testing.T) {
 
 	ch := make(chan bool)
@@ -25,11 +31,13 @@ func TestServerEndpoint(t *testing.T) {
 	server := rpc.NewServer()
 	server.Register(cal)
 
-	codec := ServeEndpoint("inproc://zpc-server-endpoint")
-
+	codec := ServeEndpoint("tcp://*:12345")
+	go run("-j", "tcp://localhost:12345", "Calculator.Add", "1", "2")
 	go server.ServeCodec(codec)
-	ticker := time.NewTicker(500 * time.Microsecond)
 
+	time.Sleep(500 * time.Millisecond)
+
+	ticker := time.NewTicker(500 * time.Millisecond)
 	select {
 	case <-cal.ch:
 		codec.Close()

@@ -41,8 +41,6 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 	//XXX only last one?
 	o, err := c.req.UnmarshalMsg(msg[len(msg)-1])
 
-	glog.Errorf("msg %#v", msg)
-
 	if err != nil || c.req.Name == "" {
 		glog.Errorf("o=%#v err=%s", o, err)
 		return fmt.Errorf("zerorpc: Error %s c.req=%#v leftbytes=%#v", err.Error(), c.req, o)
@@ -53,7 +51,6 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 	}
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	glog.Infof("zerorpc: req:%s", c.req)
 
 	c.req.Identity = identity
 	r.ServiceMethod = c.req.Name
