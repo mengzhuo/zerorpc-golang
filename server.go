@@ -3,6 +3,7 @@ package zerorpc
 import (
 	"fmt"
 	"net/rpc"
+	"reflect"
 	"sync"
 
 	"github.com/golang/glog"
@@ -65,12 +66,29 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 
 func (c *serverCodec) ReadRequestBody(x interface{}) error {
 	// We already decoded params
-	var params [1]interface{}
-	params[0] = x
+	val := reflect.ValueOf(x)
+	t := reflect.TypeOf(x)
+
+	if t.Kind() == reflect.Ptr {
+		val = val.Elem()
+		t = t.Elem()
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		f := val.Field(i)
+		if f.CanSet() {
+			f.Set(reflect.ValueOf(c.req.Params[i]).Convert(f.Type()))
+		} else {
+			return fmt.Errorf("Field :%s can't be set", f)
+		}
+	}
+
 	return nil
 }
 
 func (c *serverCodec) WriteResponse(r *rpc.Response, body interface{}) (err error) {
+
+	// body must be a pointer of Interface
 
 	c.mutex.Lock()
 	b, ok := c.pending[r.Seq]
@@ -85,13 +103,22 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, body interface{}) (err erro
 	b.Header.ResponseTo = b.Header.Id
 	b.Header.Id = uuid.NewV4().String()
 
-	glog.Error(r, body)
+	ele := reflect.ValueOf(body).Elem()
+	typ := reflect.TypeOf(body).Elem()
 
-	resp := &ServerResponse{Header: b.Header, Name: "OK", Params: []interface{}{nil}}
+	params := make([]interface{}, 1, 1)
+	switch typ.Kind() {
+	case reflect.Int:
+		params[0] = ele.Int()
+
+	}
+
+	glog.Errorf("%#v, %#v, %#v", r, ele, typ)
+	resp := &ServerResponse{Header: b.Header, Name: "OK", Params: params}
 
 	if r.Error != "" {
 		resp.Name = "ERR"
-		resp.Params = append(resp.Params, r.Error)
+		resp.Params = []interface{}{r.Error}
 	}
 
 	o, err := resp.MarshalMsg(nil)
