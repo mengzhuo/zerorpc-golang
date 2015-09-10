@@ -4,34 +4,51 @@ import (
 	"net/rpc"
 	"testing"
 	"time"
-
-	"github.com/golang/glog"
 )
 
 type Args struct {
 	X, Y int
 }
 
-type Calculator struct{}
+type Calculator struct{ ch chan bool }
 
 func (t *Calculator) Add(args *Args, reply *int) error {
-	glog.Error(args, reply)
 	*reply = args.X + args.Y
-	//reply = &Args{args.Y, args.X}
+	t.ch <- true
 	return nil
 }
 
-func TestServer(t *testing.T) {
+func TestServerEndpoint(t *testing.T) {
 
-	cal := new(Calculator)
-
+	ch := make(chan bool)
+	cal := &Calculator{ch}
 	server := rpc.NewServer()
 	server.Register(cal)
 
-	codec := ServeEndpoint("tcp://*:9999")
+	codec := ServeEndpoint("inproc://zpc-server-endpoint")
 
 	go server.ServeCodec(codec)
+	ticker := time.NewTicker(500 * time.Microsecond)
 
-	time.Sleep(2 * time.Second)
-	codec.Close()
+	select {
+	case <-cal.ch:
+		codec.Close()
+	case <-ticker.C:
+		t.Errorf("Timeouted on ServeEndpoint")
+	}
 }
+
+/*
+func TestNewCodec(t *testing.T) {
+
+	cal := new(Calculator)
+	conn, err := zmq.NewSocket(zmq.REQ)
+	if err != nil {
+		t.Error(err)
+	}
+	server := rpc.NewServer()
+	server.Register(cal)
+
+	go server.ServeCodec(NewCodec(conn))
+}
+*/
