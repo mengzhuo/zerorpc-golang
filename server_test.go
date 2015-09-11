@@ -15,13 +15,17 @@ type Calculator struct{ ch chan bool }
 
 func (t *Calculator) Add(args *Args, reply *int) error {
 	*reply = args.X + args.Y
-	t.ch <- true
 	return nil
 }
 
-func run(cmd ...string) {
+func run(cmd ...string) chan bool {
 	c := exec.Command("zerorpc", cmd...)
-	c.Run()
+	result := make(chan bool)
+	go func(c *exec.Cmd) {
+		c.Run()
+		result <- true
+	}(c)
+	return result
 }
 
 func TestServerEndpoint(t *testing.T) {
@@ -32,15 +36,26 @@ func TestServerEndpoint(t *testing.T) {
 	server.Register(cal)
 
 	codec := ServeEndpoint("tcp://*:12345")
-	go run("-j", "tcp://localhost:12345", "Calculator.Add", "1", "2")
+	cha1 := run("-j", "tcp://localhost:12345", "Calculator.Add", "1", "2")
+	cha2 := run("-j", "tcp://localhost:12345", "Calculator.Add", "3", "4")
 	go server.ServeCodec(codec)
 
 	time.Sleep(500 * time.Millisecond)
 
 	ticker := time.NewTicker(500 * time.Millisecond)
+	count := 0
 	select {
-	case <-cal.ch:
-		codec.Close()
+	case <-cha1:
+		if count > 1 {
+			return
+		}
+		count += 1
+	case <-cha2:
+		if count > 1 {
+			return
+		}
+		count += 1
+
 	case <-ticker.C:
 		t.Errorf("Timeouted on ServeEndpoint")
 	}

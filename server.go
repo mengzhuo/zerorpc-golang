@@ -113,21 +113,21 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, body interface{}) (err erro
 		params = append(params, r.Error)
 		params = append(params, r.Error)
 	} else {
-
 		ele := reflect.ValueOf(body)
 		if ele.Kind() == reflect.Ptr {
-			ele.Elem()
+			ele = ele.Elem()
 		}
 		params[0] = ele.Interface()
 		name = "OK"
 	}
 
 	resp := &ServerResponse{Header: b.Header, Name: name, Params: params}
+
 	o, err := resp.MarshalMsg(nil)
 	if err != nil {
 		glog.Error(err, o)
 	}
-	glog.Errorf("zerorpc: resp:%s", resp)
+
 	_, err = c.zsock.SendMessage(b.Identity, "", o)
 
 	return err
