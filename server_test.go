@@ -43,22 +43,12 @@ func TestServerEndpoint(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	ticker := time.NewTicker(500 * time.Millisecond)
-	count := 0
-	select {
-	case <-cha1:
-		if count > 1 {
-			return
-		}
-		count += 1
-	case <-cha2:
-		if count > 1 {
-			return
-		}
-		count += 1
-
-	case <-ticker.C:
+	go func(t *testing.T) {
+		<-ticker.C
 		t.Errorf("Timeouted on ServeEndpoint")
-	}
+	}(t)
+	<-cha1
+	<-cha2
 }
 
 /*

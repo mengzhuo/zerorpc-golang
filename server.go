@@ -22,6 +22,7 @@ type serverCodec struct {
 
 	mutex   sync.Mutex // protects seq, pending
 	pending map[uint64]ServerRequest
+	channel map[string]*Channel
 }
 
 func (c *serverCodec) Close() error {
@@ -37,7 +38,6 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 		return err
 	}
 	identity := string(msg[0])
-
 	//XXX only last one?
 	o, err := c.req.UnmarshalMsg(msg[len(msg)-1])
 
@@ -49,6 +49,9 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 	if c.req.Header.Version != PROTOCAL_VERSION {
 		return fmt.Errorf("zerorpc: Version not matching with request, expecting %d but sending %d", PROTOCAL_VERSION, c.req.Header.Version)
 	}
+
+	glog.V(1).Infof("Receiving Event %s", c.req)
+
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
