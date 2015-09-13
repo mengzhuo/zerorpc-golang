@@ -90,8 +90,6 @@ func (c *serverCodec) ReadRequestBody(x interface{}) error {
 
 func (c *serverCodec) WriteResponse(r *rpc.Response, body interface{}) (err error) {
 
-	// body must be a pointer of Interface
-
 	c.mutex.Lock()
 	b, ok := c.pending[r.Seq]
 
@@ -113,11 +111,7 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, body interface{}) (err erro
 		params = append(params, r.Error)
 		params = append(params, r.Error)
 	} else {
-		ele := reflect.ValueOf(body)
-		if ele.Kind() == reflect.Ptr {
-			ele = ele.Elem()
-		}
-		params[0] = ele.Interface()
+		params[0] = body
 		name = "OK"
 	}
 
