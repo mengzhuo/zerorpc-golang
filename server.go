@@ -5,6 +5,7 @@ import (
 	"net/rpc"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/golang/glog"
 	zmq "github.com/pebbe/zmq4"
@@ -29,12 +30,23 @@ func (c *serverCodec) Close() error {
 	return c.zsock.Close()
 }
 
+func (c *serverCodec) checkIdentity(identity string) {
+
+	if ch, ok := c.channel[identity]; !ok {
+		ch = &channel{c, identity, time.NewTicker(5 * time.Second), 1, make(chan bool)}
+		c.channel[identity] = ch
+		go ch.run()
+	} else {
+		ch.counter += 1
+	}
+}
+
 func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 
 	c.req.reset()
 
 	msg, err := c.zsock.RecvMessageBytes(0)
-	if err != nil {
+	if err != nil || len(msg) < 2 {
 		return err
 	}
 	identity := string(msg[0])
@@ -62,6 +74,7 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
+	c.checkIdentity(identity)
 	c.req.Identity = identity
 	r.ServiceMethod = c.req.Name
 	c.seq++
@@ -87,7 +100,7 @@ func (c *serverCodec) ReadRequestBody(x interface{}) error {
 	}
 
 	switch val.Kind() {
-	case reflect.String:
+	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
 			f := val.Field(i)
 			if f.CanSet() {
@@ -113,6 +126,17 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, body interface{}) (err erro
 		return fmt.Errorf("invalid sequence number:%d in response", r.Seq)
 	}
 	delete(c.pending, r.Seq)
+
+	if ch, ok := c.channel[b.Identity]; ok {
+		ch.counter -= 1
+		if ch.counter <= 0 {
+			select {
+			case ch.closed <- true:
+			default:
+			}
+			delete(c.channel, b.Identity)
+		}
+	}
 	c.mutex.Unlock()
 
 	b.Header.ResponseTo = b.Header.Id
@@ -159,6 +183,7 @@ func NewCodec(conn *zmq.Socket) rpc.ServerCodec {
 		seq:     0,
 		pending: make(map[uint64]ServerRequest),
 		req:     ServerRequest{},
+		channel: make(map[string]*channel),
 	}
 
 }

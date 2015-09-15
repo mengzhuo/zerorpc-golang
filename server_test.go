@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"testing"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 type Args struct {
@@ -14,6 +16,7 @@ type Args struct {
 type Calculator struct{ ch chan bool }
 
 func (t *Calculator) Add(args *Args, reply *int) error {
+	glog.Error(args)
 	*reply = args.X + args.Y
 	return nil
 }
@@ -40,9 +43,7 @@ func TestServerEndpoint(t *testing.T) {
 	cha2 := run("-j", "tcp://localhost:12345", "Calculator.Add", "3", "4")
 	go server.ServeCodec(codec)
 
-	time.Sleep(500 * time.Millisecond)
-
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(28 * time.Second)
 	go func(t *testing.T) {
 		<-ticker.C
 		t.Errorf("Timeouted on ServeEndpoint")
