@@ -50,6 +50,13 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) (err error) {
 		return fmt.Errorf("zerorpc: Version not matching with request, expecting %d but sending %d", PROTOCAL_VERSION, c.req.Header.Version)
 	}
 
+	switch c.req.Name {
+	case "_zpc_hb":
+		c.req.Name = "InternalService.HeartBeat"
+	case "_zerorpc_inspect":
+		c.req.Name = "InternalService.Inspect"
+	}
+
 	glog.V(1).Infof("Receiving Event %s", c.req)
 
 	c.mutex.Lock()
@@ -79,13 +86,18 @@ func (c *serverCodec) ReadRequestBody(x interface{}) error {
 		t = t.Elem()
 	}
 
-	for i := 0; i < t.NumField(); i++ {
-		f := val.Field(i)
-		if f.CanSet() {
-			f.Set(reflect.ValueOf(c.req.Params[i]).Convert(f.Type()))
-		} else {
-			return fmt.Errorf("Field :%s can't be set", f)
+	switch val.Kind() {
+	case reflect.String:
+		for i := 0; i < t.NumField(); i++ {
+			f := val.Field(i)
+			if f.CanSet() {
+				f.Set(reflect.ValueOf(c.req.Params[i]).Convert(f.Type()))
+			} else {
+				return fmt.Errorf("Field :%s can't be set", f)
+			}
 		}
+	default:
+		x = val.Interface()
 	}
 
 	return nil

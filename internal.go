@@ -4,6 +4,12 @@ import "github.com/golang/glog"
 
 type ZArgs []int
 
+func NewInternalService() *InternalService {
+	i := &InternalService{make([][]string, 0)}
+	i.registerDoc("zerorpc", "Demo")
+	return i
+}
+
 type InternalService struct {
 	methods [][]string
 }
