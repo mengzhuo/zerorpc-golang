@@ -22,7 +22,7 @@ type serverCodec struct {
 
 	mutex   sync.Mutex // protects seq, pending
 	pending map[uint64]ServerRequest
-	channel map[string]*Channel
+	channel map[string]*channel
 }
 
 func (c *serverCodec) Close() error {
